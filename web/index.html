@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f3">
+  <title>四象限分類ツール</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" type="module"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="四象限分類ツール ホーム">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span><strong>Quadrant</strong><small>四象限分類ツール</small></span>
+      </a>
+      <div class="topbar-meta"><span class="local-indicator"></span>このブラウザーに保存</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div>
+          <p class="eyebrow">THINK IN TWO DIMENSIONS</p>
+          <h1>考えを、<em>見える</em>かたちに。</h1>
+          <p class="intro-copy">ふたつの軸で、アイデアや項目を整理。自分だけの四象限マップをつくりましょう。</p>
+        </div>
+        <div class="intro-decoration" aria-hidden="true"><span>−1</span><span>0</span><span>+1</span><b></b></div>
+      </section>
+
+      <nav class="tabs" aria-label="メインメニュー">
+        <button class="tab active" type="button" data-tab="settings"><span class="tab-number">01</span>設定</button>
+        <button class="tab" type="button" data-tab="data"><span class="tab-number">02</span>データ</button>
+        <button class="tab" type="button" data-tab="map"><span class="tab-number">03</span>マップ</button>
+      </nav>
+
+      <div id="notice" class="notice" role="status" hidden></div>
+      <section id="warnings" class="warnings" aria-live="polite" hidden></section>
+
+      <section class="tab-panel" id="panel-settings">
+        <div class="section-heading">
+          <div><p class="eyebrow">YOUR FRAMEWORK</p><h2>評価軸の設定</h2><p>分類に使うふたつの軸と、それぞれの方向を決めます。</p></div>
+          <div class="settings-actions">
+            <button class="button button-outline" id="export-data" type="button">JSONを書き出す</button>
+            <label class="button button-outline" for="import-file">JSONを読み込む</label>
+            <input id="import-file" type="file" accept="application/json,.json" hidden>
+            <button class="button button-dark" id="new-setting" type="button"><span>＋</span> 新しい設定</button>
+          </div>
+        </div>
+        <div class="editor-layout">
+          <aside class="list-card"><div class="card-caption">保存済みの設定 <span id="setting-count">0</span></div><div id="setting-list" class="select-list"></div><div id="setting-empty" class="empty-small">設定はまだありません。<br>まずは軸を作成しましょう。</div></aside>
+          <form id="setting-form" class="form-card">
+            <div class="form-title"><div><span class="step-label">AXIS DESIGN</span><h3 id="setting-form-title">新しい設定</h3></div><span class="form-icon">↗</span></div>
+            <div class="form-grid two-col">
+              <label class="field"><span>設定ID <b>*</b></span><input name="id" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,63}" placeholder="例: project_priority"><small>英数字・ハイフン・アンダースコア</small></label>
+              <label class="field"><span>設定名 <b>*</b></span><input name="name" required maxlength="100" placeholder="例: プロジェクトの優先度"></label>
+            </div>
+            <div class="axis-config">
+              <div class="axis-heading"><span class="axis-badge">X</span><div><strong>横軸</strong><small>左右に広がる評価</small></div></div>
+              <label class="field"><span>ポジティブ側 <b>*</b></span><input name="x_positive" required placeholder="例: 好き"></label>
+              <span class="axis-arrow" aria-hidden="true">←　→</span>
+              <label class="field"><span>ネガティブ側 <b>*</b></span><input name="x_negative" required placeholder="例: 嫌い"></label>
+            </div>
+            <div class="axis-config">
+              <div class="axis-heading"><span class="axis-badge y-badge">Y</span><div><strong>縦軸</strong><small>上下に広がる評価</small></div></div>
+              <label class="field"><span>ポジティブ側 <b>*</b></span><input name="y_positive" required placeholder="例: 得意"></label>
+              <span class="axis-arrow vertical-arrow" aria-hidden="true">↓　↑</span>
+              <label class="field"><span>ネガティブ側 <b>*</b></span><input name="y_negative" required placeholder="例: 苦手"></label>
+            </div>
+            <div class="form-actions"><span id="setting-mode" class="muted-label">新規作成</span><button class="button button-primary" type="submit">設定を保存 <span>→</span></button></div>
+          </form>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="panel-data" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">COLLECT YOUR ITEMS</p><h2>データセットと項目</h2><p>マップに配置する項目を登録します。評価値は−1から＋1で指定できます。</p></div>
+          <button class="button button-dark" id="new-dataset" type="button"><span>＋</span> データセット作成</button>
+        </div>
+        <div class="dataset-bar">
+          <label class="field compact-field"><span>データセットを開く</span><select id="dataset-select"><option value="">データセットを選択</option></select></label>
+          <span id="dataset-save-state" class="save-state">変更は保存ボタンで反映</span>
+        </div>
+        <div id="dataset-workspace" class="dataset-workspace" hidden>
+          <form id="dataset-form" class="dataset-meta form-card">
+            <div class="form-title"><div><span class="step-label">DATASET</span><h3>データセット情報</h3></div></div>
+            <div class="form-grid two-col">
+              <label class="field"><span>データセットID <b>*</b></span><input name="id" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,63}"></label>
+              <label class="field"><span>データセット名 <b>*</b></span><input name="name" required maxlength="100" placeholder="例: 今期のアイデア"></label>
+            </div>
+            <label class="field"><span>使用する設定 <b>*</b></span><select name="setting" required></select></label>
+            <div class="form-actions"><span id="dataset-mode" class="muted-label">新規データセット</span><button class="button button-primary" type="submit">データセットを保存 <span>→</span></button></div>
+          </form>
+          <div class="items-card">
+            <div class="items-heading"><div><span class="step-label">ITEMS</span><h3>登録した項目 <span id="item-count" class="count-pill">0</span></h3></div><button class="button button-outline" id="new-item" type="button">＋ 項目を追加</button></div>
+            <div id="item-list" class="item-list"></div>
+            <div id="items-empty" class="empty-small">項目はまだありません。<br>「項目を追加」から登録できます。</div>
+          </div>
+        </div>
+        <div id="no-dataset" class="empty-state"><span class="empty-art">＋</span><h3>データセットを作成しましょう</h3><p>保存済みの評価軸を選んで、項目を追加できます。</p><button class="button button-primary" id="empty-new-dataset" type="button">データセットを作成 <span>→</span></button></div>
+      </section>
+
+      <section class="tab-panel" id="panel-map" hidden>
+        <div class="section-heading map-heading">
+          <div><p class="eyebrow">SEE THE BIG PICTURE</p><h2>四象限マップ</h2><p id="map-subtitle">項目を座標に配置して、全体を見渡しましょう。</p></div>
+          <label class="field compact-field map-select-field"><span>表示するデータセット</span><select id="map-dataset-select"><option value="">データセットを選択</option></select></label>
+        </div>
+        <div id="map-workspace" class="map-workspace" hidden>
+          <div class="map-toolbar"><div class="map-legend"><span class="legend-dot"></span><span id="map-item-count">0項目を表示</span></div><label class="field compact-field tag-filter"><span>タグで絞り込む</span><select id="tag-filter"><option value="">すべてのタグ</option></select></label></div>
+          <div class="map-layout">
+            <div class="map-frame-wrap">
+              <div class="map-frame" id="map-frame" aria-label="四象限マップ">
+                <div class="quadrant-label q1" id="label-q1"></div><div class="quadrant-label q2" id="label-q2"></div>
+                <div class="quadrant-label q3" id="label-q3"></div><div class="quadrant-label q4" id="label-q4"></div>
+                <div class="zero-line zero-x"></div><div class="zero-line zero-y"></div>
+                <span class="map-axis-label axis-top" id="axis-top"></span><span class="map-axis-label axis-bottom" id="axis-bottom"></span>
+                <span class="map-axis-label axis-left" id="axis-left"></span><span class="map-axis-label axis-right" id="axis-right"></span>
+                <div id="map-points" class="map-points"></div>
+              </div>
+              <div class="map-scale"><span>−1</span><span>0</span><span>＋1</span><span class="scale-y">Y: −1　〜　＋1</span></div>
+            </div>
+            <aside class="map-detail-card">
+              <div class="card-caption">選択した項目</div>
+              <div id="map-detail" class="map-detail empty-detail"><span class="detail-placeholder">マップ上の項目を選ぶと<br>詳細がここに表示されます。</span></div>
+            </aside>
+          </div>
+          <div class="map-items-section"><div class="items-heading"><div><span class="step-label">VISIBLE ITEMS</span><h3>表示中の項目</h3></div><span class="muted-label">重なった項目はこちらから選択できます</span></div><div id="map-item-list" class="map-item-list"></div></div>
+        </div>
+        <div id="no-map-data" class="empty-state"><span class="empty-art">◫</span><h3>マップに表示するデータがありません</h3><p>データセットを作成し、項目を登録してください。</p><button class="button button-primary" id="empty-go-data" type="button">データを登録する <span>→</span></button></div>
+      </section>
+      <footer class="app-footer"><span>QUADRANT MAPPER</span><span>シンプルに整理、自由に発想。</span></footer>
+    </main>
+  </div>
+
+  <dialog id="item-dialog" class="item-dialog">
+    <form id="item-form" method="dialog">
+      <div class="dialog-heading"><div><span class="step-label">ITEM DETAILS</span><h2 id="item-dialog-title">項目を追加</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="閉じる">×</button></div>
+      <div class="form-grid two-col">
+        <label class="field"><span>項目名 <b>*</b></span><input name="name" required maxlength="160" placeholder="管理用の名前"></label>
+        <label class="field"><span>表示名 <small>省略時は項目名</small></span><input name="display_name" maxlength="100" placeholder="マップに表示する名前"></label>
+      </div>
+      <div class="image-field field"><span>画像 <small>指定するとマップで優先表示</small></span><div class="image-control"><input name="image" type="hidden"><label class="upload-button" for="image-upload">画像を選ぶ</label><input id="image-upload" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden><span id="image-name" class="image-name">画像なし</span><button type="button" class="text-button" id="clear-image" hidden>解除</button></div><img id="image-preview" class="image-preview" alt="画像プレビュー" hidden><small>PNG / JPG / GIF / WebP、10MBまで</small></div>
+      <div class="coordinate-editor">
+        <div class="coordinate-title"><div><span class="step-label">POSITION</span><h3>評価を設定</h3></div><div class="coordinate-readout"><span>X <b id="readout-x">0.00</b></span><span>Y <b id="readout-y">0.00</b></span></div></div>
+        <div class="coordinate-grid">
+          <div class="slider-stack">
+            <label class="range-field"><span>X評価 <small id="x-range-label">−1　〜　＋1</small></span><input name="x_range" type="range" min="-1" max="1" step="0.01" value="0"><div class="range-endpoints"><span>−1</span><span>0</span><span>＋1</span></div></label>
+            <label class="range-field"><span>数値入力</span><input name="x" type="number" min="-1" max="1" step="0.01" value="0" required></label>
+            <label class="range-field"><span>Y評価 <small id="y-range-label">−1　〜　＋1</small></span><input name="y_range" type="range" min="-1" max="1" step="0.01" value="0"><div class="range-endpoints"><span>−1</span><span>0</span><span>＋1</span></div></label>
+            <label class="range-field"><span>数値入力</span><input name="y" type="number" min="-1" max="1" step="0.01" value="0" required></label>
+          </div>
+          <div class="mini-map-column"><span class="mini-map-hint">マップをクリックして座標指定</span><div id="mini-map" class="mini-map" role="slider" tabindex="0" aria-label="座標をクリックして設定"><i class="mini-zero-x"></i><i class="mini-zero-y"></i><span id="mini-marker" class="mini-marker"></span></div><div class="mini-axis-hints"><span id="mini-left">−</span><span id="mini-right">＋</span></div></div>
+        </div>
+      </div>
+      <label class="field"><span>note <small>任意のメモ</small></span><textarea name="note" rows="3" maxlength="1000" placeholder="補足や気づきを記録"></textarea></label>
+      <label class="field"><span>tags <small>カンマまたは読点で区切る</small></span><input name="tags" placeholder="例: アイデア, 優先, 要検討"></label>
+      <div class="dialog-actions"><button type="button" class="button button-outline" id="cancel-dialog">キャンセル</button><button type="submit" class="button button-primary">項目を保存 <span>→</span></button></div>
+    </form>
+  </dialog>
+  <dialog id="import-dialog" class="item-dialog import-dialog">
+    <form id="import-form" method="dialog">
+      <div class="dialog-heading"><div><span class="step-label">BACKUP & RESTORE</span><h2>JSONデータを読み込む</h2></div><button class="icon-button" type="button" id="close-import" aria-label="閉じる">×</button></div>
+      <label class="field"><span>既存データとの扱い</span><select id="import-mode" name="mode"><option value="merge">統合する（同じIDは読み込むデータで上書き）</option><option value="replace">すべて置き換える（現在のデータを削除）</option></select></label>
+      <p id="import-description" class="import-description">異なるIDの設定・データは保持し、読み込んだ同一IDのデータは置き換えます。</p>
+      <div id="import-summary" class="import-summary" aria-live="polite">ファイルを検証しています…</div>
+      <div class="dialog-actions"><button type="button" class="button button-outline" id="cancel-import">キャンセル</button><button type="submit" class="button button-primary" id="confirm-import">読み込む <span>→</span></button></div>
+    </form>
+  </dialog>
+</body>
+</html>
