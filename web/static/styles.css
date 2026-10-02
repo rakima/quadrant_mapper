@@ -49,6 +49,7 @@ button, input, select, textarea { font: inherit; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 26px; }
 .section-heading h2 { margin: 0 0 5px; font-size: 23px; font-weight: 600; letter-spacing: -.04em; }
 .section-heading p:not(.eyebrow) { margin: 0; color: #838e87; font-size: 11px; }
+.settings-actions { display: flex; align-items: center; gap: 8px; }
 .button { min-height: 39px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 0; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; transition: transform .15s, background .15s, box-shadow .15s; white-space: nowrap; }
 .button:hover { transform: translateY(-1px); }
 .button:disabled { cursor: not-allowed; opacity: .5; transform: none; }
@@ -219,6 +220,10 @@ button, input, select, textarea { font: inherit; }
 .item-dialog > form > .field { margin-top: 15px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 21px; }
 .dialog-actions .button { min-width: 105px; }
+.import-dialog { max-width: 520px; }
+.import-description { color: #77807c; font-size: 11px; line-height: 1.7; }
+.import-summary { min-height: 48px; margin-top: 14px; padding: 12px; border-radius: 6px; background: #f3f6f2; color: #58665d; font-size: 10px; line-height: 1.7; }
+.import-summary.error { background: #fbefeb; color: #a84f3d; }
 [hidden] { display: none !important; }
 
 @media (max-width: 950px) {
@@ -243,6 +248,8 @@ button, input, select, textarea { font: inherit; }
   .section-heading { align-items: flex-start; gap: 14px; }
   .section-heading h2 { font-size: 19px; }
   .section-heading > .button { margin-top: 10px; }
+  .settings-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .settings-actions .button { min-height: 34px; padding: 0 9px; font-size: 9px; }
   .section-heading p:not(.eyebrow) { max-width: 370px; line-height: 1.7; }
   .editor-layout { grid-template-columns: 1fr; }
   .list-card { min-height: initial; }

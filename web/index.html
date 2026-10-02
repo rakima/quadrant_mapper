@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f5f6f3">
   <title>四象限分類ツール</title>
   <link rel="stylesheet" href="/static/styles.css">
-  <script src="/static/app.js" defer></script>
+  <script src="/static/app.js" type="module"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -15,7 +15,7 @@
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         <span><strong>Quadrant</strong><small>四象限分類ツール</small></span>
       </a>
-      <div class="topbar-meta"><span class="local-indicator"></span>この端末に保存</div>
+      <div class="topbar-meta"><span class="local-indicator"></span>このブラウザーに保存</div>
     </header>
 
     <main>
@@ -40,7 +40,12 @@
       <section class="tab-panel" id="panel-settings">
         <div class="section-heading">
           <div><p class="eyebrow">YOUR FRAMEWORK</p><h2>評価軸の設定</h2><p>分類に使うふたつの軸と、それぞれの方向を決めます。</p></div>
-          <button class="button button-dark" id="new-setting" type="button"><span>＋</span> 新しい設定</button>
+          <div class="settings-actions">
+            <button class="button button-outline" id="export-data" type="button">JSONを書き出す</button>
+            <label class="button button-outline" for="import-file">JSONを読み込む</label>
+            <input id="import-file" type="file" accept="application/json,.json" hidden>
+            <button class="button button-dark" id="new-setting" type="button"><span>＋</span> 新しい設定</button>
+          </div>
         </div>
         <div class="editor-layout">
           <aside class="list-card"><div class="card-caption">保存済みの設定 <span id="setting-count">0</span></div><div id="setting-list" class="select-list"></div><div id="setting-empty" class="empty-small">設定はまだありません。<br>まずは軸を作成しましょう。</div></aside>
@@ -150,6 +155,15 @@
       <label class="field"><span>note <small>任意のメモ</small></span><textarea name="note" rows="3" maxlength="1000" placeholder="補足や気づきを記録"></textarea></label>
       <label class="field"><span>tags <small>カンマまたは読点で区切る</small></span><input name="tags" placeholder="例: アイデア, 優先, 要検討"></label>
       <div class="dialog-actions"><button type="button" class="button button-outline" id="cancel-dialog">キャンセル</button><button type="submit" class="button button-primary">項目を保存 <span>→</span></button></div>
+    </form>
+  </dialog>
+  <dialog id="import-dialog" class="item-dialog import-dialog">
+    <form id="import-form" method="dialog">
+      <div class="dialog-heading"><div><span class="step-label">BACKUP & RESTORE</span><h2>JSONデータを読み込む</h2></div><button class="icon-button" type="button" id="close-import" aria-label="閉じる">×</button></div>
+      <label class="field"><span>既存データとの扱い</span><select id="import-mode" name="mode"><option value="merge">統合する（同じIDは読み込むデータで上書き）</option><option value="replace">すべて置き換える（現在のデータを削除）</option></select></label>
+      <p id="import-description" class="import-description">異なるIDの設定・データは保持し、読み込んだ同一IDのデータは置き換えます。</p>
+      <div id="import-summary" class="import-summary" aria-live="polite">ファイルを検証しています…</div>
+      <div class="dialog-actions"><button type="button" class="button button-outline" id="cancel-import">キャンセル</button><button type="submit" class="button button-primary" id="confirm-import">読み込む <span>→</span></button></div>
     </form>
   </dialog>
 </body>

@@ -1,6 +1,11 @@
+import { BrowserRepository } from './storage.mjs';
+
+const repository = new BrowserRepository();
+const imageUrls = new Map();
 const state = {
   settings: [],
   datasets: [],
+  images: new Map(),
   dataset: null,
   datasetExists: false,
   settingId: null,
@@ -15,16 +20,6 @@ const settingForm = $('#setting-form');
 const datasetForm = $('#dataset-form');
 const itemDialog = $('#item-dialog');
 const itemForm = $('#item-form');
-
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || `リクエストに失敗しました (${response.status})`);
-  return payload;
-}
 
 function notify(message, isError = false) {
   const notice = $('#notice');
@@ -49,7 +44,12 @@ function formValues(form) {
 
 function imageUrl(image) {
   if (!image) return '';
-  return `/api/images/${image.split('/').map(encodeURIComponent).join('/')}`;
+  if (!imageUrls.has(image)) {
+    const blob = state.images.get(image);
+    if (!blob) return '';
+    imageUrls.set(image, URL.createObjectURL(blob));
+  }
+  return imageUrls.get(image);
 }
 
 function showWarnings(warnings = []) {
@@ -273,10 +273,7 @@ async function saveDataset() {
     items: state.dataset.items,
   };
   try {
-    const saved = await api(state.datasetExists ? `/api/datasets/${encodeURIComponent(id)}` : '/api/datasets', {
-      method: state.datasetExists ? 'PUT' : 'POST',
-      body: JSON.stringify(dataset),
-    });
+    const saved = await repository.saveDataset(dataset, { overwrite: state.datasetExists });
     state.dataset = saved;
     state.datasetExists = true;
     upsert(state.datasets, saved);
@@ -303,9 +300,7 @@ async function removeItem(itemId) {
   const original = state.dataset;
   state.dataset = { ...original, items: original.items.filter((entry) => entry.id !== itemId) };
   try {
-    const saved = await api(`/api/datasets/${encodeURIComponent(state.dataset.id)}`, {
-      method: 'PUT', body: JSON.stringify(state.dataset),
-    });
+    const saved = await repository.saveDataset(state.dataset, { overwrite: true });
     state.dataset = saved;
     upsert(state.datasets, saved);
     renderDataset();
@@ -314,7 +309,6 @@ async function removeItem(itemId) {
   } catch (error) {
     state.dataset = original;
     notify(error.message, true);
-    await refreshData();
   }
 }
 
@@ -498,9 +492,15 @@ function makeCoordinateChip(axis, value) {
 }
 
 async function refreshData() {
-  const payload = await api('/api/bootstrap');
+  applyLoadedData(await repository.load());
+}
+
+function applyLoadedData(payload) {
   state.settings = payload.settings;
   state.datasets = payload.datasets;
+  state.images = payload.images;
+  imageUrls.forEach((url) => URL.revokeObjectURL(url));
+  imageUrls.clear();
   if (state.dataset) {
     const updated = state.datasets.find((entry) => entry.id === state.dataset.id);
     if (updated) state.dataset = updated;
@@ -529,9 +529,7 @@ settingForm.addEventListener('submit', async (event) => {
     axis_y: { positive: values.y_positive.trim(), negative: values.y_negative.trim() },
   };
   try {
-    const saved = await api(state.settingExists ? `/api/settings/${encodeURIComponent(setting.id)}` : '/api/settings', {
-      method: state.settingExists ? 'PUT' : 'POST', body: JSON.stringify(setting),
-    });
+    const saved = await repository.saveSetting(setting, { overwrite: state.settingExists });
     upsert(state.settings, saved);
     state.settingId = saved.id;
     state.settingExists = true;
@@ -618,18 +616,11 @@ $('#image-upload').addEventListener('change', async (event) => {
     return;
   }
   try {
-    const dataUrl = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('画像を読み込めません。'));
-      reader.readAsDataURL(file);
-    });
-    const saved = await api('/api/images', {
-      method: 'POST', body: JSON.stringify({ filename: file.name, data: String(dataUrl).split(',')[1] }),
-    });
-    itemForm.elements.image.value = saved.image;
-    refreshImagePreview(saved.image);
-    notify('画像をdata/imagesに保存しました。');
+    const image = await repository.saveImage(file);
+    state.images.set(image, file.slice(0, file.size, file.type));
+    itemForm.elements.image.value = image;
+    refreshImagePreview(image);
+    notify('画像をこのブラウザーに保存しました。');
   } catch (error) {
     notify(error.message, true);
   }
@@ -661,9 +652,7 @@ itemForm.addEventListener('submit', async (event) => {
   else items.push(item);
   const updatedDataset = { ...state.dataset, items };
   try {
-    const saved = await api(`/api/datasets/${encodeURIComponent(state.dataset.id)}`, {
-      method: 'PUT', body: JSON.stringify(updatedDataset),
-    });
+    const saved = await repository.saveDataset(updatedDataset, { overwrite: true });
     state.dataset = saved;
     upsert(state.datasets, saved);
     state.selectedMapItemId = item.id;
@@ -678,5 +667,96 @@ itemForm.addEventListener('submit', async (event) => {
 });
 
 $('#empty-go-data').addEventListener('click', () => setTab('data'));
+
+const importDialog = $('#import-dialog');
+const importForm = $('#import-form');
+let pendingImport = null;
+
+$('#export-data').addEventListener('click', async () => {
+  try {
+    const exported = await repository.exportData();
+    const file = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+    const downloadUrl = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `quadrant-mapper-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    notify('JSONバックアップを作成しました。');
+  } catch (error) {
+    notify(`Exportできません: ${error.message}`, true);
+  }
+});
+
+async function refreshImportPreview() {
+  const summary = $('#import-summary');
+  const confirmButton = $('#confirm-import');
+  summary.classList.remove('error');
+  confirmButton.disabled = true;
+  if (!pendingImport) {
+    summary.textContent = 'ファイルを選択してください。';
+    return;
+  }
+  try {
+    const counts = await repository.previewImport(pendingImport, $('#import-mode').value);
+    summary.textContent = `適用後の合計：設定 ${counts.settings}件、データセット ${counts.datasets}件、画像 ${counts.images}件`;
+    confirmButton.disabled = false;
+  } catch (error) {
+    summary.textContent = error.message;
+    summary.classList.add('error');
+  }
+}
+
+$('#import-file').addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (file.size > 100 * 1024 * 1024) {
+    notify('JSONバックアップは100MB以下にしてください。', true);
+    event.target.value = '';
+    return;
+  }
+  try {
+    pendingImport = await file.text();
+    $('#import-mode').value = 'merge';
+    $('#import-description').textContent = '異なるIDの設定・データは保持し、読み込んだ同一IDのデータは置き換えます。';
+    await refreshImportPreview();
+    importDialog.showModal();
+  } catch (error) {
+    pendingImport = null;
+    notify(`ファイルを読み込めません: ${error.message}`, true);
+  }
+});
+
+$('#import-mode').addEventListener('change', () => {
+  $('#import-description').textContent = $('#import-mode').value === 'replace'
+    ? '現在の設定・データセット・画像をすべて削除し、バックアップの内容に置き換えます。'
+    : '異なるIDの設定・データは保持し、読み込んだ同一IDのデータは置き換えます。';
+  refreshImportPreview();
+});
+
+$('#close-import').addEventListener('click', () => importDialog.close());
+$('#cancel-import').addEventListener('click', () => importDialog.close());
+importDialog.addEventListener('close', () => {
+  pendingImport = null;
+  $('#import-file').value = '';
+});
+importForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!pendingImport) return;
+  if ($('#import-mode').value === 'replace' && !window.confirm('現在のブラウザー内データをすべて置き換えます。続行しますか？')) return;
+  try {
+    const imported = await repository.importData(pendingImport, $('#import-mode').value);
+    state.dataset = null;
+    state.datasetExists = false;
+    state.selectedMapItemId = null;
+    applyLoadedData(imported);
+    importDialog.close();
+    notify('データを読み込みました。');
+  } catch (error) {
+    $('#import-summary').textContent = error.message;
+    $('#import-summary').classList.add('error');
+    $('#confirm-import').disabled = true;
+  }
+});
 
 refreshData().catch((error) => notify(`データを読み込めません: ${error.message}`, true));
