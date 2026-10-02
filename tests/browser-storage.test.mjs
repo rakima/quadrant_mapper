@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { StorageValidationError, validateImportPayload } from '../web/static/storage.mjs';
@@ -25,6 +26,8 @@ const dataset = {
     tags: ['仕事'],
   }],
 };
+
+const repositoryRoot = new URL('../', import.meta.url);
 
 function bundle(overrides = {}) {
   return {
@@ -115,4 +118,18 @@ test('imports image blobs and rejects missing or unsafe image references', () =>
 test('rejects unsupported image types and mismatched file extensions', () => {
   assert.throws(() => validateImportPayload(bundle({ images: [{ name: 'cover.svg', data: 'data:image/png;base64,aW1n' }] }), 'replace'), /画像名と形式/);
   assert.throws(() => validateImportPayload(bundle({ images: [{ name: 'cover.png', data: 'data:image/svg+xml;base64,aW1n' }] }), 'replace'), /PNG、JPG/);
+});
+
+test('GitHub Pages entry point uses relative assets for project-site paths', async () => {
+  const html = await readFile(new URL('web/index.html', repositoryRoot), 'utf8');
+  assert.match(html, /href="\.\/static\/styles\.css"/);
+  assert.match(html, /src="\.\/static\/app\.js"/);
+  assert.doesNotMatch(html, /(?:href|src)="\/static\//);
+});
+
+test('GitHub Pages workflow deploys the static web directory', async () => {
+  const workflow = await readFile(new URL('.github/workflows/pages.yml', repositoryRoot), 'utf8');
+  assert.match(workflow, /branches: \[main\]/);
+  assert.match(workflow, /path: web/);
+  assert.match(workflow, /actions\/deploy-pages@v4/);
 });
