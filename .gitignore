@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+
+# User-created local data
+/data/settings/*.json
+/data/datasets/*.json
+/data/images/*
+!/data/settings/.gitkeep
+!/data/datasets/.gitkeep
+!/data/images/.gitkeep
